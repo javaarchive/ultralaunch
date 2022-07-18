@@ -5,7 +5,7 @@ const path = require('path');
 function makeConfig(environment, target) {
     return {
         target: target,
-        mode: 'development',
+        mode: process.env.NODE_ENV || 'development',
         entry: './src/main.ts',
         output: {
             path: path.resolve(__dirname, 'build'),
@@ -21,12 +21,12 @@ function makeConfig(environment, target) {
             ]
         },
         resolve: {
-            extensions: [".ts", ".tsx", ".js"]
+            extensions: [".ts", ".tsx"]
         },
         watch: true
     };
 }
 
 module.exports = [
-    makeConfig('server', 'node')
+    makeConfig('node')
 ];

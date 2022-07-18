@@ -3,3 +3,5 @@ build/
 .idea/
 .upm/
 .vscode/
+# Build specific stuff
+src/mc-launch-core/myconfig.ts
