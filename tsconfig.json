@@ -1,9 +1,9 @@
 {
     "compilerOptions": {
-      "module": "commonjs",
+      "module": "NodeNext",
       "target": "es2020",
       "allowJs": false,
-      "moduleResolution": "node",
+      "moduleResolution": "NodeNext",
       "esModuleInterop": true,
       "outDir": "./build"
     }

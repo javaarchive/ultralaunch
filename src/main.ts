@@ -1,11 +1,11 @@
 import MinecraftController from "./mc-launch-core/minecraft_controller";
 
-import {userConfig, minecraftOptions} from "./config";
+import {config} from "./config";
 import builddata from "./builddata";
 
 import chalk from "chalk";
 
-const controller = new MinecraftController(userConfig, minecraftOptions);
+const controller = new MinecraftController(config);
 
 (async () => {
     console.log(chalk.magenta("Ultralaunch Minecraft Launcher v" + builddata.VERSION));
@@ -13,6 +13,6 @@ const controller = new MinecraftController(userConfig, minecraftOptions);
     console.log(chalk.magenta("Checking player data. You'll be prompted if any needed data is missing"));
     console.log(chalk.cyan("Downloading game (if needed)..."));
     await controller.prepare();
-    console.log(chalk.cyan("Game downloaded! Launching now"));
+    console.log(chalk.cyan("Game downloaded! Launching now!"));
     await controller.run();
 })

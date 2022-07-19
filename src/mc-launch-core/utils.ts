@@ -4,15 +4,6 @@ import {Downloader, NodeFetchDownloader} from "./downloader";
 
 import fetch from "node-fetch";
 
-interface MinecraftOptions {
-    downloader?: Downloader;
-    username: string,
-    uuid?: string,
-    accessToken?: string,
-    customVersionURL?: string,
-    modded?: boolean
-}
-
 function guessJavapath(){
     if(os.platform() === "win32"){
         return "C:/windows/Program Files (x86)/Minecraft/runtime/jre-legacy/windows-x64/jre-legacy/bin/java.exe";
@@ -23,21 +14,27 @@ function guessJavapath(){
     }
 }
 
-interface UserConfig{
+interface Configuration {
+    downloader?: Downloader;
+    username?: string;
+    uuid?: string;
+    accessToken?: string;
+    customVersionURL?: string;
+    modded?: boolean;
     version?: string;
     javaPath?: string;
     gameDirectory?: string;
     hashChecks?: boolean;
-    parellelDownloads?: number,
-    downloaderUserAgent?: string,
-    initialMemoryMB?: number,
-    maxMemoryMB?: number,
-    customJVMargs?: string[],
-    customMinecraftArgs?: string[],
-    lang?: string
+    parellelDownloads?: number;
+    downloaderUserAgent?: string;
+    initialMemoryMB?: number;
+    maxMemoryMB?: number;
+    customJVMargs?: string[];
+    customMinecraftArgs?: string[];
+    lang?: string;
 };
 
-const defaultConfig: UserConfig = {
+const defaultConfig: Configuration = {
     version: "1.19.1",
     gameDirectory: path.join(os.homedir(),".minecraft_alt"),
     javaPath: guessJavapath(),
@@ -56,7 +53,7 @@ interface MapLike<T> {
     has(key: string): boolean;
 }
 
-function convertToFullConfig(incompleteConfig: UserConfig): UserConfig{
+function convertToFullConfig(incompleteConfig: Configuration): Configuration{
     const config = {
         ...defaultConfig,
         ...incompleteConfig
@@ -70,4 +67,4 @@ function decodeBuffer(buf: Buffer){
 }
 
 export { decodeBuffer, convertToFullConfig, defaultConfig };
-export type { MapLike, MinecraftOptions, UserConfig };
+export type { MapLike, Configuration };

@@ -1,5 +1,5 @@
 import { AssetHandler } from "./assethandler";
-import { MapLike, MinecraftOptions, convertToFullConfig, UserConfig, defaultConfig  } from "./utils";
+import { MapLike, convertToFullConfig, Configuration, defaultConfig  } from "./utils";
 
 import {Downloader, NodeFetchDownloader, getReqBuffer} from "./downloader";
 import constants from "./constants";
@@ -39,8 +39,7 @@ async function checkFileExists(fpath: string){
 
 class MinecraftController{
     assetHandler: AssetHandler;
-    extraOpts: MinecraftOptions;
-    config: UserConfig = convertToFullConfig({});
+    config: Configuration = {};
     downloader: Downloader;
     versionManifest?: GameVersionManifest;
     versionDetails?: GameVersionDetails; // TODO: make naming less confusing
@@ -48,18 +47,13 @@ class MinecraftController{
     logging: boolean = true;
     platform: string = os.platform();
 
-    constructor(uConfig: UserConfig, extraOpts: MinecraftOptions){
-        let configCopy: UserConfig = {};
-        Object.keys(defaultConfig).forEach(k => {
-            configCopy[k] = uConfig[k] || (defaultConfig as Record<string,any>)[k];
-        });
-        this.config = configCopy;
-        this.extraOpts = extraOpts;
-        this.assetHandler = new AssetHandler(null, this.extraOpts);
-        if(this.extraOpts.downloader == null){
-            this.extraOpts.downloader = new NodeFetchDownloader();
+    constructor(config: Configuration){
+        this.config = config;
+        this.assetHandler = new AssetHandler(this.config);
+        if(this.config.downloader == null){
+            this.config.downloader = new NodeFetchDownloader();
         }
-        this.downloader = this.extraOpts.downloader;
+        this.downloader = this.config.downloader;
         this.downloader.user_agent = this.config.downloaderUserAgent!;
     }
 
@@ -141,7 +135,7 @@ class MinecraftController{
     }
 
     async fetchVersionData(){
-        let versionURL = this.extraOpts.customVersionURL;
+        let versionURL = this.config.customVersionURL;
         if(!versionURL){
             let versionSummary = this.versionManifest!.versions.filter(v => v.id == this.config.version)[0];
             versionURL = versionSummary.url;
@@ -353,9 +347,9 @@ class MinecraftController{
         /*if(!force && checkFileExists(path.join(this.config.gameDirectory!,".done"))){
             return;
         }*/
-        if(!this.extraOpts.modded){
-            await this.fetchVersionManifest();
-        }
+        //if(!this.config.modded){
+        await this.fetchVersionManifest();
+        //}
         await this.fetchVersionData();
         await this.downloadCriticals();
         await this.fetchAssetIndex();
@@ -379,21 +373,21 @@ class MinecraftController{
 
         let versionArgs = this.versionDetails!.minecraftArguments!;
         let mcArgsFillin: Record<string,string> = {
-            "auth_player_name": this.extraOpts.username || "steve",
+            "auth_player_name": this.config.username || "steve",
             "version_name": this.config.version!,
             "assets_root": path.join(this.config.gameDirectory!, "assets"),
             "game_directory": this.config.gameDirectory!,
            // "assetsIndex": path.join(this.config.gameDirectory!, "assets", "indexes", this.config.version + ".json"),
            "assets_index_name": this.versionDetails!.assetIndex.id,
-            "auth_uuid": this.extraOpts.uuid || Buffer.from((this.extraOpts.username || "steve") + "              ").toString("hex").substr(0,32), // TODO: optional hash mode?
+            "auth_uuid": this.config.uuid || Buffer.from((this.config.username || "steve") + "              ").toString("hex").substr(0,32), // TODO: optional hash mode?
             "user_type": "mojang",
             "user_properties":JSON.stringify({
                 "prefferedLanguage": [this.config.lang]
             }),
-            "auth_access_token": this.extraOpts.accessToken || "null"
+            "auth_access_token": this.config.accessToken || "null"
         }
-        if(this.extraOpts.accessToken){
-            mcArgsFillin["auth_access_token"] = this.extraOpts.accessToken;
+        if(this.config.accessToken){
+            mcArgsFillin["auth_access_token"] = this.config.accessToken;
         }
 
         let versionArgsSplit = versionArgs.split(" ");
@@ -407,7 +401,7 @@ class MinecraftController{
             versionArgsSplit[i*2 + 1] = mcArgsFillin[argType] || versionArgsSplit[i*2 + 1];
         }
 
-        if(!this.extraOpts.accessToken){
+        if(!this.config.accessToken){
             versionArgsSplit.map((val) => {
                 if(val == "--accessToken"){
                     return "--noAccessToken";

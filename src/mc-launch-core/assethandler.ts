@@ -1,15 +1,14 @@
-import { MapLike, MinecraftOptions } from "./utils";
+import { MapLike, Configuration } from "./utils";
 
 // I made this a year ago and don't remeber it's intended purpose
 
 class AssetHandler{
-    configMap: MapLike<string>;
-    extraOpts: MinecraftOptions;
+    config: Configuration;
     
-    constructor(configMap: MapLike<string>, extraOpts: MinecraftOptions){
-        this.configMap = configMap;
-        this.extraOpts = extraOpts;
+    constructor(config: Configuration){
+        this.config = config;
     }
+   
 }
 
 export default AssetHandler;
