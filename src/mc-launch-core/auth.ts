@@ -4,10 +4,10 @@
 // is a thing already
 // and also uses node-fetch
 
-import constants from "./constants";
+import constants from "./constants.js";
 import fetch from "node-fetch";
-import {defaultConfig} from "./utils";
-import {AuthenticateEndpointResponse, RefreshEndpointResponse, UserProfile} from "./schemas";
+import {defaultConfig} from "./utils.js";
+import {AuthenticateEndpointResponse, RefreshEndpointResponse, UserProfile} from "./schemas.js";
 
 function somethingWentWrong(json: any): boolean{
     return ("error" in json || "errorMessage" in json || "cause" in json);

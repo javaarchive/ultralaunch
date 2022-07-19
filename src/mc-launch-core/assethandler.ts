@@ -1,4 +1,4 @@
-import { MapLike, Configuration } from "./utils";
+import { MapLike, Configuration } from "./utils.js";
 
 // I made this a year ago and don't remeber it's intended purpose
 

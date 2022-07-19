@@ -1,7 +1,7 @@
-import MinecraftController from "./mc-launch-core/minecraft_controller";
+import MinecraftController from "./mc-launch-core/minecraft_controller.js";
 
-import {config} from "./config";
-import builddata from "./builddata";
+import {config} from "./config.js";
+import builddata from "./builddata.js";
 
 import chalk from "chalk";
 
@@ -12,7 +12,7 @@ const controller = new MinecraftController(config);
     console.log(chalk.blue("This is Minimal Launcher. It will not popup any additional windows other than this one. "));
     console.log(chalk.magenta("Checking player data. You'll be prompted if any needed data is missing"));
     console.log(chalk.cyan("Downloading game (if needed)..."));
-    await controller.prepare();
+    await controller.download();
     console.log(chalk.cyan("Game downloaded! Launching now!"));
     await controller.run();
-})
+})();

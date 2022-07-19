@@ -1,7 +1,7 @@
-import { Configuration } from "./mc-launch-core/utils";
+import { Configuration } from "./mc-launch-core/utils.js";
 
-import myConfig from "./myconfig"; // Build-specific overrides
-import conf from "./sharedconf"; // Shared conf object
+import myConfig from "./myconfig.js"; // Build-specific overrides
+import conf from "./sharedconf.js"; // Shared conf object
 
 import os from "os";
 import fs from "fs";

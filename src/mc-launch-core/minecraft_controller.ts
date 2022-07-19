@@ -1,14 +1,14 @@
-import { AssetHandler } from "./assethandler";
-import { MapLike, convertToFullConfig, Configuration, defaultConfig  } from "./utils";
+import { AssetHandler } from "./assethandler.js";
+import { MapLike, convertToFullConfig, Configuration, defaultConfig  } from "./utils.js";
 
-import {Downloader, NodeFetchDownloader, getReqBuffer} from "./downloader";
-import constants from "./constants";
+import {Downloader, NodeFetchDownloader, getReqBuffer} from "./downloader.js";
+import constants from "./constants.js";
 
-import {GameVersionManifest, GameVersionDetails, CriticalFile, AssetIndex, AssetObject, CodeLibrary, LibraryFileDetails} from "./schemas";
+import {GameVersionManifest, GameVersionDetails, CriticalFile, AssetIndex, AssetObject, CodeLibrary, LibraryFileDetails} from "./schemas.js";
 
-import {WorkerPool} from "./worker";
+import {WorkerPool} from "./worker.js";
 
-import {decodeBuffer} from "./utils";
+import {decodeBuffer} from "./utils.js";
 
 import {promises as fs} from "fs"
 import {createWriteStream} from "fs"

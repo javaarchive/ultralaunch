@@ -1,6 +1,6 @@
 import os from "os";
 import path from "path";
-import {Downloader, NodeFetchDownloader} from "./downloader";
+import {Downloader, NodeFetchDownloader} from "./downloader.js";
 
 import fetch from "node-fetch";
 

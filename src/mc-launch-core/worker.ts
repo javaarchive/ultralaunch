@@ -106,5 +106,5 @@ class WorkerPool{
 		})();
 	}
 }
-module.exports = {WorkerPool};
+// module.exports = {WorkerPool};
 export {WorkerPool};
