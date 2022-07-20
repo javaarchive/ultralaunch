@@ -1,7 +1,7 @@
 import { AssetHandler } from "./assethandler.js";
-import { MapLike, convertToFullConfig, Configuration, defaultConfig  } from "./utils.js";
+import { MapLike, convertToFullConfig, Configuration, defaultConfig, processRule  } from "./utils.js";
 
-import {Downloader, NodeFetchDownloader, getReqBuffer} from "./downloader.js";
+import {Downloader, RetryingNodeFetchDownloader, getReqBuffer} from "./downloader.js";
 import constants from "./constants.js";
 
 import {GameVersionManifest, GameVersionDetails, CriticalFile, AssetIndex, AssetObject, CodeLibrary, LibraryFileDetails} from "./schemas.js";
@@ -22,6 +22,8 @@ import os from "os";
 
 import child_process from "child_process";
 
+import {EventEmitter} from "events";
+
 async function checkFileExists(fpath: string){
     try{
         let stat = await fs.stat(fpath);
@@ -37,7 +39,9 @@ async function checkFileExists(fpath: string){
     }
 }
 
-class MinecraftController{
+import replaceAll from "string.prototype.replaceall";
+
+class MinecraftController extends EventEmitter {
     assetHandler: AssetHandler;
     config: Configuration = {};
     downloader: Downloader;
@@ -48,10 +52,11 @@ class MinecraftController{
     platform: string = os.platform();
 
     constructor(config: Configuration){
+        super();
         this.config = config;
         this.assetHandler = new AssetHandler(this.config);
         if(this.config.downloader == null){
-            this.config.downloader = new NodeFetchDownloader();
+            this.config.downloader = new RetryingNodeFetchDownloader();
         }
         this.downloader = this.config.downloader;
         this.downloader.user_agent = this.config.downloaderUserAgent!;
@@ -142,19 +147,21 @@ class MinecraftController{
         }
         let buf = await getReqBuffer(this.downloader,versionURL,path.join(this.config.gameDirectory!,"versions",this.config.version+".json"));
         let json = JSON.parse(decodeBuffer(buf));
+        // console.log(json);
         // Extra processing
         json.libraries = json.libraries.map((lib: any) => {
             if(lib.downloads == null || lib.downloads.artifact == null){
                 // for launchwrapper
                 let libInfo = lib.name.split(":");
                 let [domain, pkgName, version] = libInfo;
+                // console.log(lib);
                 if(!lib.downloads){
                     lib.downloads = {};
                 }
                 lib.downloads.artifact = {
                     "sha1": null,
-                    "path": domain.replaceAll(".","/") + "/" + pkgName + "/" + version + "/" + pkgName + "-" + version + ".jar",
-                    "url": (lib.url || "https://libraries.minecraft.net/") + domain.replaceAll(".","/") + "/" + pkgName + "/" + version + "/" + pkgName + "-" + version + ".jar"
+                    "path": replaceAll(domain,".","/") + "/" + pkgName + "/" + version + "/" + pkgName + "-" + version + ".jar",
+                    "url": (lib.url || "https://libraries.minecraft.net/") + replaceAll(domain,".","/") + "/" + pkgName + "/" + version + "/" + pkgName + "-" + version + ".jar"
                 }
                 // console.log("Transformed to an artifact ",lib.downloads.artifact);
             }
@@ -179,15 +186,20 @@ class MinecraftController{
                     reject(err);
                     return;
                 }
-                let count = zipFile!.entryCount;
+                let count = zipFile.entryCount;
                 if(count == 0){
                     return;
                 }
                 let finished = 0;
                 if(this.logging) console.log("Opened",zipPath,"got ",count,"entries");
-                zipFile!.on("entry", (entry: yauzl.Entry) => {
+                zipFile.on("entry", (entry: yauzl.Entry) => {
                     // console.log("Found entry",entry.fileName);
-                    if(excludes.some(e => entry.fileName.startsWith(e))){
+                    if(!entry.fileName){
+                        // folder probaly
+                        finished ++; // don't stall
+                        return;
+                    }
+                    if(excludes.some(e => entry.fileName.startsWith(e)) || entry.fileName.startsWith("META-INF")) {
                         finished ++; // don't stall
                         return;
                     }
@@ -203,7 +215,7 @@ class MinecraftController{
                         // await mkdirp(path.dirname(dest));
                         if(this.logging) console.log("Copying to",dest);
                         let writeStream = createWriteStream(dest);
-                        stream!.pipe(writeStream);
+                        stream.pipe(writeStream);
                         writeStream.on("finish",() =>{
                             // console.log("Finished Writing", dest, finished + 1, " out of ",count, " total done now");
                             finished ++;
@@ -273,7 +285,13 @@ class MinecraftController{
             let library: CodeLibrary = libs[i];
 
             await pool.runInWorkerNowait(async () => {
-                console.log(library);
+                if(this.logging) console.log(library);
+                if(library.rules){
+                    if(!processRule(osKey,library.rules)){
+                        if(this.logging) console.log("Skipping",library.name," not applicable for os");
+                        return;
+                    }
+                }
                 if(library.downloads!.classifiers){
                     // console.log("Downloading based on OS", library.name);
                     // Platform Swap
@@ -287,6 +305,7 @@ class MinecraftController{
                     }
                     // console.log("Actual Artifact", artifact);
                     if(artifact && !(await checkFileExists(path.join(this.config.gameDirectory!,"libraries", artifact.path)))){
+                        // Artifact hasn't already been downloaded
                         let dest = path.join(this.config.gameDirectory!, "libraries", artifact.path);
                         // console.log("Resolved dir now creating...");
                         try{
@@ -297,9 +316,14 @@ class MinecraftController{
                         if(this.logging) console.log("Downloading native",artifact.path);
                         await this.downloader.download(artifact.url, dest);
                         if(this.logging) console.log("Completed native downloading for ",artifact.path);
+                        // force extraction for all lwjgl to workaround extract not being present somehow
                         if(library.extract){
                             if(this.logging) console.log("Extracting native",artifact.path);
-                            await this.unzip(dest,binFolder,library.extract!.exclude || []);
+                            let excludes = [];
+                            if(library.extract && library.extract.exclude){
+                                excludes = library.extract.exclude;
+                            }
+                            await this.unzip(dest,binFolder,excludes);
                             if(this.logging) console.log(artifact.path,"extracted");
                         }
                     }
@@ -361,17 +385,29 @@ class MinecraftController{
     
     spawn(){
         let libraryPaths: string[] = [];
+        let osKey = (constants.NODE_PLATFORM_TO_MC_PLATFORM[this.platform]);
         this.versionDetails?.libraries.forEach(lib => {
+            if(lib.rules && !processRule(osKey, lib.rules)){
+                return;
+            }
+            // console.log(lib);
             if(lib.downloads && lib.downloads.artifact){
                 libraryPaths.push(path.join(this.config.gameDirectory!, "libraries", lib.downloads.artifact.path));
             }
-            // natives?
+            // natives
+            if(lib.natives){
+                libraryPaths.push(path.join(this.config.gameDirectory!, "libraries", lib.downloads.classifiers["natives-" + osKey].path));
+            }
         });
         libraryPaths.push(path.join(this.config.gameDirectory!, "versions", this.config.version + ".jar"));
         let cpSeperator = os.platform().startsWith("win") ? ";" : ":";
         let cpArg: string = libraryPaths.join(cpSeperator);
 
         let versionArgs = this.versionDetails!.minecraftArguments!;
+        if(this.versionDetails!.arguments && this.versionDetails!.arguments.game){
+            versionArgs = this.versionDetails!.arguments.game.filter(obj => typeof obj == "string").join(" ");
+            console.log("vargs",versionArgs)
+        }
         let mcArgsFillin: Record<string,string> = {
             "auth_player_name": this.config.username || "steve",
             "version_name": this.config.version!,
@@ -380,31 +416,36 @@ class MinecraftController{
            // "assetsIndex": path.join(this.config.gameDirectory!, "assets", "indexes", this.config.version + ".json"),
            "assets_index_name": this.versionDetails!.assetIndex.id,
             "auth_uuid": this.config.uuid || Buffer.from((this.config.username || "steve") + "              ").toString("hex").substr(0,32), // TODO: optional hash mode?
-            "user_type": "mojang",
+            "user_type": this.config.accountType || "msa", //"mojang",
             "user_properties":JSON.stringify({
                 "prefferedLanguage": [this.config.lang]
             }),
-            "auth_access_token": this.config.accessToken || "null"
+            "auth_access_token": this.config.accessToken || "null",
+            "clientid": "",
+            "auth_xuid": "",
+            "version_type": this.versionDetails.type
         }
         if(this.config.accessToken){
             mcArgsFillin["auth_access_token"] = this.config.accessToken;
         }
 
         let versionArgsSplit = versionArgs.split(" ");
-        for(let i = 0; i < versionArgsSplit.length/2; i++){
-            let argTemp = versionArgsSplit[i*2 + 1];
-            if(!argTemp.startsWith("$")){
-                continue;
+        if(versionArgs.length){
+            for(let i = 0; i < versionArgsSplit.length/2; i++){
+                let argTemp = versionArgsSplit[i*2 + 1];
+                if(!argTemp.startsWith("$")){
+                    continue;
+                }
+                let argType = argTemp.slice(2, argTemp.length - 1);
+                console.log("Filling in",argType);
+                versionArgsSplit[i*2 + 1] = mcArgsFillin[argType] || versionArgsSplit[i*2 + 1];
             }
-            let argType = argTemp.slice(2, argTemp.length - 1);
-            console.log("Filling in",argType);
-            versionArgsSplit[i*2 + 1] = mcArgsFillin[argType] || versionArgsSplit[i*2 + 1];
         }
 
         if(!this.config.accessToken){
-            versionArgsSplit.map((val) => {
+            versionArgsSplit.map((val, index) => {
                 if(val == "--accessToken"){
-                    return "--noAccessToken";
+                    versionArgsSplit[index + 1] = "null";
                 }
             });
             
@@ -420,11 +461,11 @@ class MinecraftController{
            // "XX:-UseAdaptiveSizePolicy",
            this.versionDetails?.logging.client?.argument.replace("${path}", path.join(this.config.gameDirectory!, this.versionDetails!.logging!.client!.file!.id)) || "log4j2.xml",
             "-Djava.library.path=" + path.join(this.config.gameDirectory!, "bin"),
-            ...this.config.customJVMargs!,
+            ...(this.config.customJVMargs || []),
             "-cp", cpArg,
             this.versionDetails!.mainClass,
             ...versionArgsSplit,
-            ...this.config.customMinecraftArgs!
+            ...(this.config.customMinecraftArgs! || [])
 
         ];
 

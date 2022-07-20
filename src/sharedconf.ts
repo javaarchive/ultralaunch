@@ -3,8 +3,10 @@ import builddata from "./builddata.js";
 import myconfig from "./myconfig.js";
 
 export default new Conf({
-    cwd: process.cwd(),
     projectVersion: builddata.VERSION,
     projectName: myconfig.projectName || "ultralaunch",
-    defaults: myconfig.defaults
+    defaults: myconfig.defaults,
+    configName: "ultralauncher",
+    projectSuffix: "",
+    cwd: process.cwd()
 });

@@ -7,9 +7,11 @@ import {promises as fsPromises} from "fs";
 import path from "path";
 import os from "os";
 
+import {EventEmitter} from "events";
+
 const temporaryDirectory = os.tmpdir();
 
-interface Downloader{
+interface Downloader {
     user_agent: string;
 
     // Used for downloads on things like assets
@@ -18,7 +20,7 @@ interface Downloader{
     cleanup(): Promise<void>;
 }
 
-class NodeFetchDownloader implements Downloader{
+class NodeFetchDownloader  extends EventEmitter implements Downloader{
     user_agent: string = "Node-Fetch/2.6.0";
 
     download(url: string, path: string): Promise<void>{
@@ -29,9 +31,20 @@ class NodeFetchDownloader implements Downloader{
                 }
             });
             if(!res || !res.body){
-                return reject(new Error("Could not download file, no response or response body"));
+                const err = new Error("Could not download file, no response or response body")
+                this.emit("error",err);
+                return reject(err);
             }
+            let contentLength = res.headers.get("Content-Length");
             let dest = fs.createWriteStream(path);
+            res.body.on("data", (chunk) => {
+                this.emit("progress", {
+                    total: contentLength,
+                    received: chunk.length,
+                    url: url,
+                    path: path
+                });
+            });
             res.body.pipe(dest);
             dest.on("finish", () => {
                 resolve();
@@ -41,6 +54,32 @@ class NodeFetchDownloader implements Downloader{
 
     cleanup(): Promise<void>{
         return Promise.resolve();
+    }
+}
+
+class RetryingNodeFetchDownloader extends NodeFetchDownloader{
+    maxTries = 10;
+    retryDelay = 1000;
+
+    download(url: string, path: string): Promise<void>{
+        return new Promise(async (resolve, reject) => {
+            let tries = 0;
+            while(tries < this.maxTries){
+                try{
+                    await super.download(url, path);
+                    resolve();
+                    return;
+                }catch(ex){
+                    this.emit("error",ex);
+                    tries++;
+                    if(tries < this.maxTries){
+                        await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+                    }else{
+                        reject(ex);
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -54,5 +93,5 @@ async function getReqBuffer(downloader: Downloader, url: string, tempPath?: stri
 }
 
 
-export { NodeFetchDownloader, getReqBuffer };
+export { NodeFetchDownloader, getReqBuffer , RetryingNodeFetchDownloader};
 export type { Downloader };

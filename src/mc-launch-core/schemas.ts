@@ -49,7 +49,6 @@ interface DownloadRule{
         name: string;
     }
 }
-
 interface CodeLibrary{
     name: string;
     downloads:{
@@ -75,7 +74,11 @@ interface GameVersionDetails{
     assets: string; // major version usually like 1.8
     mainClass: string; // usually net.minecraft.client.main.Main
     minimumLauncherVersion: number;
-    minecraftArguments: string;
+    minecraftArguments: string; // Legacy
+    arguments?: {
+        game: (string | DownloadRule)[]; // New arguments
+        jvm: string[];
+    }
     // Important Sections
     downloads:{
         client: CriticalFile;

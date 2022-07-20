@@ -2,17 +2,9 @@ import os from "os";
 import path from "path";
 import {Downloader, NodeFetchDownloader} from "./downloader.js";
 
-import fetch from "node-fetch";
+import {DownloadRule} from "./schemas.js";
 
-function guessJavapath(){
-    if(os.platform() === "win32"){
-        return "C:/windows/Program Files (x86)/Minecraft/runtime/jre-legacy/windows-x64/jre-legacy/bin/java.exe";
-    }else if(os.platform() === "linux"){
-        return "/usr/bin/java";
-    }else{
-        return "/Applications"; // i don't use a mac
-    }
-}
+import fetch from "node-fetch";
 
 interface Configuration {
     downloader?: Downloader;
@@ -32,12 +24,13 @@ interface Configuration {
     customJVMargs?: string[];
     customMinecraftArgs?: string[];
     lang?: string;
+    accountType?: string;
 };
 
 const defaultConfig: Configuration = {
     version: "1.19.1",
     gameDirectory: path.join(os.homedir(),".minecraft_alt"),
-    javaPath: guessJavapath(),
+    javaPath: null,
     hashChecks: true, // not implemented yet!
     parellelDownloads: 8,
     downloaderUserAgent: "mc-launch-core/1.0",
@@ -45,7 +38,8 @@ const defaultConfig: Configuration = {
     maxMemoryMB: 4000,
     customJVMargs: [],
     customMinecraftArgs: [],
-    lang: "en-US"
+    lang: "en-US",
+    accountType: "msa" // mojang to fake mojang
 }
 
 interface MapLike<T> {
@@ -66,5 +60,24 @@ function decodeBuffer(buf: Buffer){
     return buf.toString("utf8");
 }
 
-export { decodeBuffer, convertToFullConfig, defaultConfig };
+function processRule(platform: string, rules: DownloadRule[]){
+    let works = false;
+    for(let rule of rules){
+        if(rule.action == "disallow"){
+            if(rule.os.name == platform){
+                works = false;
+            }
+        }else{
+            if(rule.os && rule.os.name == platform){
+                works = true;
+            }else if(!rule.os){
+                works = true;
+            }
+        }
+    }
+    return works;
+}
+
+export { decodeBuffer, convertToFullConfig, defaultConfig, processRule };
+
 export type { MapLike, Configuration };

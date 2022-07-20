@@ -5,3 +5,5 @@ build/
 .vscode/
 # Build specific stuff
 src/mc-launch-core/myconfig.ts
+config.json
+ultralauncher.json
