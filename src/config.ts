@@ -18,7 +18,8 @@ export const config: Configuration = {
     hashChecks: true,
     customMinecraftArgs: myConfig.customMinecraftArgs || conf.get("customMinecraftArgs") || ["--ultralaunch"],
     downloaderUserAgent: "Ultralaunch/1.0",
-    customJVMargs: []
+    customJVMargs: [],
+    username: username
 }
 
 export function saveConfig(newConfig: Record<string,any>){
