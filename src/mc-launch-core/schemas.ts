@@ -99,6 +99,7 @@ interface GameVersionDetails{
     releaseTime: string;
     time: string;
     type: "snapshot" | "release" | "old_alpha" | "old_beta";
+    inheritsFrom?: string; // modloaders
 }
 
 interface AssetObject{

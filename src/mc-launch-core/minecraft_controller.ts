@@ -123,6 +123,11 @@ class MinecraftController extends EventEmitter {
         }
     }
     
+    /**
+     * Create folder structure for the game if needed. 
+     *
+     * @memberof MinecraftController
+     */
     async prepare(){
         await this.ensureDirectoryExists(this.config.gameDirectory!);
         await this.ensureDirectoryExists(path.join(this.config.gameDirectory!, "assets"));
@@ -214,6 +219,7 @@ class MinecraftController extends EventEmitter {
                         // if(this.logging) console.log("Mkdirping",path.dirname(dest));
                         // await mkdirp(path.dirname(dest));
                         if(this.logging) console.log("Copying to",dest);
+                        this.emit("extractNativeFile", entry.fileName, dest);
                         let writeStream = createWriteStream(dest);
                         stream.pipe(writeStream);
                         writeStream.on("finish",() =>{
@@ -245,6 +251,7 @@ class MinecraftController extends EventEmitter {
         });
         let trunacatedHashesArray: string[] = Array.from(trunacatedHashes);
         if(this.logging) console.log("Creating folders for",trunacatedHashesArray.length,"2 letter hash slices");
+        this.emit("preAssetFolderCreate");
         await Promise.all(trunacatedHashesArray.map(async hashslice => {
             try{
                 let stats = await fs.stat(path.join(this.config.gameDirectory!, "assets", "objects", hashslice));
@@ -259,8 +266,14 @@ class MinecraftController extends EventEmitter {
                 }
             }
         }));
+        this.emit("postAssetFolderCreate");
         if(this.logging) console.log("Starting to download",keys.length,"asset objects with",this.config.parellelDownloads,"parellel downloaders");
         let pool = new WorkerPool(this.config.parellelDownloads!);
+        let count = 0;
+        this.emit("assetDownloadProgress",{
+            total: keys.length,
+            current: 0
+        });
         for(let i = 0; i < keys.length; i++){
             let key = keys[i];
             let obj: AssetObject = objects[key];
@@ -270,8 +283,14 @@ class MinecraftController extends EventEmitter {
             }
             await pool.runInWorkerNowait(async () => {
                 await this.downloader.download(constants.ASSETS_BASE + "/" + obj.hash.slice(0,2) + "/" + obj.hash, dest);
+                count ++;
+                this.emit("assetDownloadProgress",{
+                    total: keys.length,
+                    current: count
+                });
+                if(this.logging) console.log("Downloaded",i,"of",keys.length,"objects");
             });
-            if(this.logging) console.log("Downloaded",i+1,"of",keys.length,"objects");
+           
         }
         await pool.waitForAllTasks();
     }
@@ -281,6 +300,11 @@ class MinecraftController extends EventEmitter {
         let pool = new WorkerPool(this.config.parellelDownloads!);
         let osKey = (constants.NODE_PLATFORM_TO_MC_PLATFORM[this.platform]);
         let binFolder = path.join(this.config.gameDirectory!,"bin");
+        this.emit("libraryDownloadProgress",{
+            total: libs.length,
+            current: 0
+        });
+        let count = 0;
         for(let i = 0; i < libs.length; i++){
             let library: CodeLibrary = libs[i];
 
@@ -332,7 +356,7 @@ class MinecraftController extends EventEmitter {
                     if(await checkFileExists(path.join(this.config.gameDirectory!, "libraries", library.downloads!.artifact!.path))){
                         return;
                     }
-                    console.log("Downloading Universal", library.name);
+                    if(this.logging) console.log("Downloading Universal", library.name);
                     let artifact = library.downloads!.artifact!;
                     let dest = path.join(this.config.gameDirectory!, "libraries", artifact.path);
                     await mkdirp(path.dirname(dest));
@@ -345,9 +369,15 @@ class MinecraftController extends EventEmitter {
                         if(this.logging) console.log(artifact.path,"extracted");
                     }*/
                 }
+                count ++;
+                this.emit("libraryDownloadProgress",{
+                    total: libs.length,
+                    current: count
+                });
+                if(this.logging) console.log("Downloaded",count,"of",libs.length,"Libraries");
             });
             await pool.waitForAllTasks();
-            if(this.logging) console.log("Downloaded",i+1,"of",libs.length,"Libraries");
+            this.emit("postLibraryDownload");
         }
     }
 
@@ -360,6 +390,7 @@ class MinecraftController extends EventEmitter {
         }
         let dest = path.join(this.config.gameDirectory!,this.versionDetails!.logging!.client!.file!.id);
         this.downloader.download(this.versionDetails!.logging!.client!.file!.url!, dest);
+        this.emit("postLoggingDownload");
     }
 
     async markDone(){
@@ -388,11 +419,16 @@ class MinecraftController extends EventEmitter {
         let osKey = (constants.NODE_PLATFORM_TO_MC_PLATFORM[this.platform]);
         this.versionDetails?.libraries.forEach(lib => {
             if(lib.rules && !processRule(osKey, lib.rules)){
+                // Ignore libraries not for our platform
                 return;
             }
             // console.log(lib);
             if(lib.downloads && lib.downloads.artifact){
                 libraryPaths.push(path.join(this.config.gameDirectory!, "libraries", lib.downloads.artifact.path));
+            }else{
+                // For modded
+                const [domain, pkgName, version] = lib.name.split(":");
+                libraryPaths.push(path.join(this.config.gameDirectory!, "libraries", ...domain.split("."),pkgName ,version,pkgName + "-" + version + ".jar"));
             }
             // natives
             if(lib.natives){
@@ -406,7 +442,7 @@ class MinecraftController extends EventEmitter {
         let versionArgs = this.versionDetails!.minecraftArguments!;
         if(this.versionDetails!.arguments && this.versionDetails!.arguments.game){
             versionArgs = this.versionDetails!.arguments.game.filter(obj => typeof obj == "string").join(" ");
-            console.log("vargs",versionArgs)
+            if(this.logging) console.log("vargs",versionArgs)
         }
         let mcArgsFillin: Record<string,string> = {
             "auth_player_name": this.config.username || "steve",
@@ -437,7 +473,7 @@ class MinecraftController extends EventEmitter {
                     continue;
                 }
                 let argType = argTemp.slice(2, argTemp.length - 1);
-                console.log("Filling in",argType);
+                if(this.logging) console.log("Filling in",argType);
                 versionArgsSplit[i*2 + 1] = mcArgsFillin[argType] || versionArgsSplit[i*2 + 1];
             }
         }
@@ -481,6 +517,7 @@ class MinecraftController extends EventEmitter {
             detached: true
         }).on("error",(err) => {
             // TODO: Log
+            this.emit("processError",err);
         });
     }
 
@@ -496,6 +533,9 @@ class MinecraftController extends EventEmitter {
         await this.run();
     }
 
+    setVersionDetails(versionDetails: any){
+        this.versionDetails = versionDetails;
+    }
 }
 
 

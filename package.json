@@ -9,6 +9,7 @@
     "conf": "^10.1.2",
     "mkdirp": "^1.0.4",
     "node-fetch": "^3.2.8",
+    "progress": "^2.0.3",
     "string.prototype.replaceall": "^1.0.6",
     "uuid-js": "^0.7.5",
     "yauzl": "^2.10.0"
@@ -37,7 +38,14 @@
   "type": "module",
   "pkg": {
     "outputPath": "dist",
-    "scripts": "build_cjs/**/*"
+    "scripts": "build_cjs/**/*",
+    "targets": [
+      "linux",
+      "win",
+      "macos-x64",
+      "linuxstatic",
+      "macos-arm64"
+    ]
   },
   "bin": "build_cjs/main.js"
 }
