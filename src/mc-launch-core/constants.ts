@@ -6,7 +6,7 @@ const NODE_PLATFORM_TO_MC_PLATFORM: { [key: string]: any } = {
 };
 
 const constants = {
-    DEFAULT_VERSION:"1.8.9",
+    DEFAULT_VERSION:"1.18.2",
     MIN_USERNAME_LENGTH: 3,
     MAX_USERNAME_LENGTH: 16,
     USER_AGENT: "Custom Minecraft Launcher/1.0.0",

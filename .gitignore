@@ -7,3 +7,5 @@ build/
 src/mc-launch-core/myconfig.ts
 config.json
 ultralauncher.json
+dist
+build_cjs
