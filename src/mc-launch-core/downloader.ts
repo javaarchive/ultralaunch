@@ -38,6 +38,13 @@ class NodeFetchDownloader  extends EventEmitter implements Downloader{
             let contentLength = res.headers.get("Content-Length");
             let dest = fs.createWriteStream(path);
             let recieved = 0;
+            this.emit("progress", {
+                total: contentLength,
+                received: recieved,
+                justRecieved: 0,
+                url: url,
+                path: path
+            });
             res.body.on("data", (chunk) => {
                 recieved += chunk.length;
                 this.emit("progress", {

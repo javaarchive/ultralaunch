@@ -14,6 +14,8 @@ import { GameVersionDetails } from "./mc-launch-core/schemas.js";
 
 import fetch from "node-fetch";
 
+import {EventEmitter} from "events";
+
 export async function checkFileExists(fpath: string){
     try{
         let stat = await fs.promises.stat(fpath);
@@ -33,15 +35,25 @@ function wait(ms){
     return new Promise((resolve, reject) => setTimeout(resolve,ms))
 }
 
-export class Launcher {
+export class Launcher extends EventEmitter{
     controller: MinecraftController;
     config: Configuration;
     remoteConfig: RemoteConfig;
     fabric: FabricHelper;
 
     constructor(config){
+        super();
         this.controller = new MinecraftController(config);
         this.config = config;
+        if(myconfig.connectToServer){
+            const split = myconfig.connectToServer.split(":");
+            this.controller.config.customMinecraftArgs.push("--server");   
+            this.controller.config.customMinecraftArgs.push(split[0]);
+            if(split[1]){
+                this.controller.config.customMinecraftArgs.push("--port");   
+                this.controller.config.customMinecraftArgs.push(split[1]);
+            }   
+        }
     }
 
     async syncRemoteConfig(){
@@ -108,6 +120,27 @@ export class Launcher {
                 // Now we need to redownload...
                 await this.controller.downloadLibraries();
                 this.controller.setVersionDetails(transformedManifest);
+            }
+            // Mods Sync
+            if(this.remoteConfig.mods){
+                // console.log("Download Mods Start");
+                this.emit("preDownloadMods");
+                for(let mod of this.remoteConfig.mods){
+                    let modPath = path.join(this.config.gameDirectory, "mods", mod.filename);
+                    if(!(await checkFileExists(modPath) || await checkFileExists(modPath + ".disabled"))){
+                        await this.controller.downloader.download(mod.url, modPath);
+                    }
+                }
+                this.emit("postDownloadMods");
+                let remoteFilenames = new Set(this.remoteConfig.mods.map(m => m.filename));
+                let modFiles = await fs.promises.readdir(path.join(this.config.gameDirectory, "mods"));
+                if(!config["noDeleteRemovedRemoteFiles"]){
+                    for(let modFilename of modFiles){
+                        if(!remoteFilenames.has(modFilename) && !modFilename.endsWith(".disabled") && !modFilename.includes(".custom.")){
+                            await fs.promises.unlink(path.join(this.config.gameDirectory, "mods", modFilename));
+                        }
+                    }
+                }
             }
             return true;
         }else{

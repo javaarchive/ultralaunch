@@ -10,6 +10,7 @@ import chalk from "chalk";
 import readline from "readline";
 
 import ProgressBar from "progress";
+import { NodeFetchDownloader } from "./mc-launch-core/downloader.js";
 
 (async () => {
     const launcher = new Launcher(initialConfiguration);
@@ -70,6 +71,19 @@ import ProgressBar from "progress";
         });
     });
 
+    (launcher.controller.config.downloader as NodeFetchDownloader).on("progress", (initialProgress) => {
+        if(initialProgress.current != 0) return;
+        if(!initialProgress.path.includes("mods")) return;
+        let bar = new ProgressBar(initialProgress.path + "... [:bar] :rate/fps :percent :etas", {
+                total: initialProgress.total
+            });
+        (launcher.controller.config.downloader as NodeFetchDownloader).on("progress", (progress) => {
+            if(initialProgress.path === progress.path) bar.tick(progress.justRecieved);
+        });
+    });
+
+    (launcher.controller.config.downloader as NodeFetchDownloader).on("error",console.warn);
+
     try{
         await launcher.syncRemoteConfig();
 
@@ -79,6 +93,7 @@ import ProgressBar from "progress";
         console.log(chalk.magenta("Apply mods (if needed). "));
         await launcher.applyMods();
 
+        console.log(chalk.magenta("Launching Game!. "));
         await launcher.launch();
     }catch(ex){
         console.log(chalk.red("An inrecoverable launcher error occured. The launcher has entered a halted state. "));

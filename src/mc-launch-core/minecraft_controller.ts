@@ -136,6 +136,10 @@ class MinecraftController extends EventEmitter {
         await this.ensureDirectoryExists(path.join(this.config.gameDirectory!, "libraries"));
         await this.ensureDirectoryExists(path.join(this.config.gameDirectory!, "versions"));
         await this.ensureDirectoryExists(path.join(this.config.gameDirectory!, "bin"));
+        if(this.config.extendedFolderStructure){
+            await this.ensureDirectoryExists(path.join(this.config.gameDirectory!, "shaderpacks"));
+            await this.ensureDirectoryExists(path.join(this.config.gameDirectory!, "mods"));
+        }
     }
 
     async fetchVersionManifest(){
@@ -309,10 +313,15 @@ class MinecraftController extends EventEmitter {
             let library: CodeLibrary = libs[i];
 
             await pool.runInWorkerNowait(async () => {
-                if(this.logging) console.log(library);
+                // if(this.logging) console.log(library);
                 if(library.rules){
                     if(!processRule(osKey,library.rules)){
-                        if(this.logging) console.log("Skipping",library.name," not applicable for os");
+                        // if(this.logging) console.log("Skipping",library.name," not applicable for os");
+                        count ++;
+                        this.emit("libraryDownloadProgress",{
+                            total: libs.length,
+                            current: count
+                        });
                         return;
                     }
                 }
@@ -376,9 +385,9 @@ class MinecraftController extends EventEmitter {
                 });
                 if(this.logging) console.log("Downloaded",count,"of",libs.length,"Libraries");
             });
-            await pool.waitForAllTasks();
-            this.emit("postLibraryDownload");
+           
         }
+        await pool.waitForAllTasks();
     }
 
     async downloadLogging(){

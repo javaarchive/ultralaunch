@@ -25,6 +25,7 @@ interface Configuration {
     customMinecraftArgs?: string[];
     lang?: string;
     accountType?: string;
+    extendedFolderStructure?: boolean;
 };
 
 const defaultConfig: Configuration = {
@@ -39,7 +40,8 @@ const defaultConfig: Configuration = {
     customJVMargs: [],
     customMinecraftArgs: [],
     lang: "en-US",
-    accountType: "msa" // mojang to fake mojang
+    accountType: "msa", // mojang to fake mojang
+    extendedFolderStructure: true
 }
 
 interface MapLike<T> {

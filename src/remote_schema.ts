@@ -1,5 +1,6 @@
 interface Mod{
-    name: string;
+    name?: string;
+    filename: string;
     version?: string;
     url: string;
 }
