@@ -1,7 +1,7 @@
 import constants from "./constants.js";
 
 // @ts-ignore
-import fetch from "node-fetch";
+import fetch from "./better_fetch.js";
 import fs from "fs";
 import {promises as fsPromises} from "fs";
 import path from "path";
@@ -21,7 +21,7 @@ interface Downloader {
 }
 
 class NodeFetchDownloader  extends EventEmitter implements Downloader{
-    user_agent: string = "Node-Fetch/2.6.0";
+    user_agent: string = "./better_fetch.js/2.6.0";
 
     download(url: string, path: string): Promise<void>{
         return new Promise(async (resolve, reject) => {
@@ -69,7 +69,7 @@ class NodeFetchDownloader  extends EventEmitter implements Downloader{
 
 class RetryingNodeFetchDownloader extends NodeFetchDownloader{
     maxTries = 10;
-    retryDelay = 1000;
+    retryDelay = 2500;
 
     download(url: string, path: string): Promise<void>{
         return new Promise(async (resolve, reject) => {

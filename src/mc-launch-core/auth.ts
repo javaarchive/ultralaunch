@@ -2,10 +2,10 @@
 // This whole library might be a stupid idea cause
 // https://github.com/PrismarineJS/node-yggdrasil
 // is a thing already
-// and also uses node-fetch
+// and also uses ./better_fetch.js
 
 import constants from "./constants.js";
-import fetch from "node-fetch";
+import fetch from "./better_fetch.js";
 import {defaultConfig} from "./utils.js";
 import {AuthenticateEndpointResponse, RefreshEndpointResponse, UserProfile} from "./schemas.js";
 

@@ -48,7 +48,7 @@ import { NodeFetchDownloader } from "./mc-launch-core/downloader.js";
 
     console.log(chalk.green("Welcome User " + launcher.config.username));
 
-    launcher.setLogging(true);
+    launcher.setLogging(false);
 
     // Attaching progress bars
     launcher.controller.on("assetDownloadProgress", (initialProgress) => {

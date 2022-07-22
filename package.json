@@ -43,8 +43,7 @@
       "linux",
       "win",
       "macos-x64",
-      "linuxstatic",
-      "macos-arm64"
+      "linuxstatic"
     ]
   },
   "bin": "build_cjs/main.js"

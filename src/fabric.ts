@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import {GameVersionDetails} from "./mc-launch-core/schemas.js";
 
-import fetch from "node-fetch";
+import fetch from "./mc-launch-core/better_fetch.js";
 import { Downloader } from "./mc-launch-core/downloader.js";
 
 export class FabricHelper{

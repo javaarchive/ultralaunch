@@ -4,7 +4,7 @@ import {Downloader, NodeFetchDownloader} from "./downloader.js";
 
 import {DownloadRule} from "./schemas.js";
 
-import fetch from "node-fetch";
+import fetch from "./better_fetch.js";
 
 interface Configuration {
     downloader?: Downloader;
@@ -33,7 +33,7 @@ const defaultConfig: Configuration = {
     gameDirectory: path.join(os.homedir(),".minecraft_alt"),
     javaPath: null,
     hashChecks: true, // not implemented yet!
-    parellelDownloads: 8,
+    parellelDownloads: 2,
     downloaderUserAgent: "mc-launch-core/1.0",
     initialMemoryMB: 256,
     maxMemoryMB: 4000,
