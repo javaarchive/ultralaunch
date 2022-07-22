@@ -9,3 +9,4 @@ config.json
 ultralauncher.json
 dist
 build_cjs
+src/myconfig.ts
